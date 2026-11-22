@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#00c777"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon-192.png"><title>운동해야 돼!</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#000814;color:#f4f7ff;font-family:system-ui,-apple-system,sans-serif;padding:26px 16px 50px}main{max-width:680px;margin:auto}
+h1{font-size:28px;margin:8px 0}h2{font-size:21px;margin:4px 0 14px}.date,.muted{color:#8794ad}.date{margin:4px 0 20px}
+.card{border:1px solid #34435e;border-radius:28px;padding:20px;margin:16px 0;background:#020b20}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat{background:#00091d;border-radius:22px;padding:18px}.num{font-size:36px;font-weight:800}.g{color:#55d39a}
+button{border:0;border-radius:16px;padding:15px 18px;font-size:17px;font-weight:750;cursor:pointer;color:#fff;background:#17243c}
+.check{width:100%;background:#007b3b;margin:16px 0 10px}.check:disabled{background:#1b2a3f;color:#8794ad}.del{background:#3a1620;color:#ff9aa8;padding:10px 12px;font-size:14px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center}.day{background:#07142c;border-radius:50%;padding:11px 0;color:#93a0b8;font-size:14px}.done{background:#006b3c;color:#fff}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid #34435e}.row:last-child{border:0}.sub{font-size:13px;color:#8794ad}
+.ed{display:grid;grid-template-columns:1fr 78px auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #34435e}
+input,select{width:100%;background:#00091d;border:1px solid #40516d;border-radius:12px;color:#fff;padding:11px;font-size:16px}input[type=checkbox]{width:20px;height:20px}
+.f{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;padding:7px 0}
+</style></head><body><main>
+<h1>운동해야 돼! 🏋️</h1><div class="date" id="today"></div>
+<section class="card"><div class="stats"><div class="stat"><div class="num" id="streak"></div><div class="muted">연속 출석</div></div><div class="stat"><div class="num" id="total"></div><div class="muted">누적 출석</div></div></div>
+<button class="check" id="check">오늘 출석 체크하기</button><div class="muted" id="msg"></div></section>
+<section class="card"><h2>최근 7일 출석</h2><div class="days" id="days"></div></section>
+<section class="card"><h2>오늘의 운동 루틴</h2><div id="routine"></div></section>
+<section class="card"><h2>운동 칼로리 계산</h2><div class="stats"><div class="stat"><div class="muted">오늘 예상 소모량</div><div class="num g" id="kcal" style="font-size:30px"></div></div><div class="stat"><div class="muted">최근 7일 누적</div><div class="num g" id="week" style="font-size:30px"></div></div></div>
+<div class="f"><span>몸무게(kg)</span><input id="w" type="number" min="20" max="200" inputmode="decimal"></div><div class="f"><span>오늘 세트 수</span><input id="sets" type="number" min="1" max="50" inputmode="numeric"></div>
+<div class="muted" style="font-size:12px;line-height:1.6;margin-top:6px">칼로리 = MET × 몸무게 × 운동 시간(횟수 × 1회 동작 시간). 운동·횟수·세트를 바꾸면 바로 다시 계산돼. MET는 성인 참고값이라 실제와 차이가 있어.</div></section>
+<section class="card"><h2>운동 횟수 설정</h2><div class="muted" style="font-size:13px">횟수는 바꾸면 자동 저장돼. 체크하면 출석할 때마다 1개씩 늘어나.</div><div id="settings"></div></section>
+<section class="card"><h2>새 운동 추가</h2><div class="f"><span>운동 이름</span><input id="nn" maxlength="30" placeholder="예: 플랭크"></div><div class="f"><span>1세트 횟수</span><input id="nr" type="number" min="1" max="9999" value="20" inputmode="numeric"></div>
+<div class="f"><span>운동 강도</span><select id="nl"><option value="low">낮음 (가벼운 운동)</option><option value="mid" selected>보통 (맨몸 근력)</option><option value="high">높음 (격렬한 운동)</option></select></div>
+<button class="check" id="add">운동 추가하기</button><div class="muted" id="addMsg"></div></section>
+<section class="card"><button class="del" id="reset">기록 초기화</button></section>
+</main><script>
+const K='workout-v2',LV={low:[2.8,2.5],mid:[3.8,2.5],high:[7.5,2]};
+const DEF=[['팔굽혀펴기',9,3.8,2.5,1],['점프 스쿼트',50,7.5,2],['레그 레이즈 업',50,3.8,2.5],['런지',50,3.8,2],['덤벨 운동',50,3.5,2.5],['엎드려 니업',100,7.5,1.2],['버피',15,7.5,4],['팔굽혀펴기',9,3.8,2.5,1],['윗몸말아올리기',150,2.8,2.5]];
+let S;try{S=JSON.parse(localStorage.getItem(K))}catch{}
+if(!S||!Array.isArray(S.ex))S={ex:DEF.map((d,i)=>({id:'d'+i,name:d[0],reps:d[1],met:d[2],spr:d[3],grow:d[4]||0})),dates:[],kcal:{},sets:1,w:68};
+const $=id=>document.getElementById(id),save=()=>localStorage.setItem(K,JSON.stringify(S));
+const ds=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return ds(d)};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const kc=e=>e.met*S.w*(e.reps*e.spr/3600)*S.sets,tot=()=>S.ex.reduce((a,e)=>a+kc(e),0),fmt=n=>Math.round(n)+' kcal';
+function render(){
+ const t=ago(0),done=S.dates.includes(t);let s=0,st=done?0:1;while(S.dates.includes(ago(st+s)))s++;
+ $('today').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+ $('streak').textContent=s+'일 🔥';$('total').textContent=S.dates.length+'일';
+ $('check').disabled=done;$('check').textContent=done?'오늘 출석 완료 ✅':'오늘 출석 체크하기';
+ const p=S.ex.find(e=>e.grow);$('msg').textContent=done?(p?'내일 팔굽혀펴기 목표는 '+p.reps+'개야.':'수고했어!'):'운동을 마친 뒤 눌러. 누르면 팔굽혀펴기가 1개 늘어나.';
+ let d='';for(let i=6;i>=0;i--){const x=new Date();x.setDate(x.getDate()-i);d+='<div class="day'+(S.dates.includes(ds(x))?' done':'')+'">'+['일','월','화','수','목','금','토'][x.getDay()]+'</div>'}$('days').innerHTML=d;
+ $('routine').innerHTML=S.ex.length?S.ex.map(e=>'<div class="row"><div>'+esc(e.name)+'<div class="sub">'+fmt(kc(e))+'</div></div><b class="g">'+e.reps+'회'+(S.sets>1?' × '+S.sets:'')+'</b></div>').join(''):'<div class="muted">운동이 없어. 아래에서 추가해줘.</div>';
+ $('settings').innerHTML=S.ex.map(e=>'<div class="ed"><div>'+esc(e.name)+'<div class="sub"><label><input type="checkbox" data-g="'+e.id+'"'+(e.grow?' checked':'')+'> 매일 +1</label></div></div><input type="number" min="1" max="9999" inputmode="numeric" value="'+e.reps+'" data-r="'+e.id+'"><button class="del" data-d="'+e.id+'">삭제</button></div>').join('');
+ $('kcal').textContent=fmt(tot());let w=0;for(let i=0;i<7;i++)w+=S.kcal[ago(i)]||0;$('week').textContent=fmt(w);
+ $('w').value=S.w;$('sets').value=S.sets;
+}
+$('check').onclick=()=>{const t=ago(0);if(S.dates.includes(t))return;S.dates.push(t);S.kcal[t]=Math.round(tot());S.ex.forEach(e=>{if(e.grow)e.reps+=1});save();render()};
+$('w').onchange=e=>{const v=parseFloat(e.target.value);if(v>=20&&v<=200)S.w=v;save();render()};
+$('sets').onchange=e=>{const v=parseInt(e.target.value);if(v>=1&&v<=50)S.sets=v;save();render()};
+$('settings').onchange=e=>{const t=e.target,x=S.ex.find(o=>o.id===(t.dataset.r||t.dataset.g));if(!x)return;if(t.dataset.g)x.grow=t.checked?1:0;else{const v=parseInt(t.value);if(v>=1)x.reps=v}save();render()};
+$('settings').onclick=e=>{const id=e.target.dataset.d;if(!id)return;const x=S.ex.find(o=>o.id===id);if(x&&confirm(x.name+' 운동을 삭제할까?')){S.ex=S.ex.filter(o=>o.id!==id);save();render()}};
+$('add').onclick=()=>{const n=$('nn').value.trim(),r=parseInt($('nr').value);if(!n||!(r>=1)){$('addMsg').textContent='이름과 횟수를 확인해줘.';return}const l=LV[$('nl').value];S.ex.push({id:'c'+Date.now(),name:n,reps:r,met:l[0],spr:l[1],grow:0});save();$('nn').value='';$('addMsg').textContent=n+' 추가됨. 칼로리에 바로 반영돼.';render()};
+$('reset').onclick=()=>{if(confirm('출석 기록을 모두 지울까? (운동 목록은 유지돼)')){S.dates=[];S.kcal={};save();render()}};
+render();if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
+</script></body></html>
